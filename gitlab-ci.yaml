@@ -1,0 +1,35 @@
+stages:
+  - deploy
+
+variables:
+  GITHUB_REPO: "https://${GITHUB_TOKEN_TW}@github.com/islandex/test.git"
+  GITHUB_BRANCH: "feature/option3"
+  DEPLOYED_BRANCH: "main"
+  FILE_CONTENT: "This is a sample file ver23"
+  FILE_NAME: "sample.txt"
+  FILE_BRANCH: "feature/file"
+  FILE_BRANCH_TEST: "feature/test"
+
+before_script:
+  - 'which ssh-agent || ( apt-get update -qy && apt-get install openssh-client -qqy )'
+  - eval `ssh-agent -s`
+  - echo "${SSH_DEPLOY_PRIVATE_KEY}" | tr -d '\r' | ssh-add - > /dev/null # add ssh key
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_DEPLOY_PUBLIC_KEY" >> ~/.ssh/id_rsa.pub
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  - git config user.email "tomek@globalnet.com.pl"
+  - git config user.name "Tomek"
+  - git config pull.rebase true
+
+deploy:
+  stage: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y lftp
+    - set -e
+    - lftp -c "set ftp:ssl-allow no; open -d -u $FTP_USERNAME,$FTP_PASSWORD $FTP_SERVER; mirror -Rev ./ $FTP_PATH  --ignore-time --parallel=10 --exclude-glob .git* --exclude .git/ --exclude test/bbb.txt --exclude bbb.html"
+  timeout: 5m
+  when: manual
+  only:
+    - feature/option3
